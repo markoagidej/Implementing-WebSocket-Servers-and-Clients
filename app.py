@@ -1,9 +1,10 @@
 from web_socket_server import WebSocketServer, socketio, app
 from flask import render_template
+import json
 
 app = WebSocketServer().create_app()
 
-messages = []
+message_storage  = {}
 
 @socketio.on('connect')
 def handle_connect():
@@ -15,17 +16,22 @@ def handle_disconnect():
 
 @socketio.on('message')
 def handle_message(message):
-    print(f'Recieved message: {message}')
-    messages.append(message)
-    socketio.emit('message', message)
+    msg_dict = json.loads(message)
+    print(f'Recieved message: {msg_dict}')
+    user_sender = msg_dict['user']
+    if user_sender in message_storage:
+        message_storage[user_sender].append(msg_dict['message'])
+    else:
+        message_storage[user_sender] = [msg_dict['message']]
+    print(message_storage)
 
-@socketio.on('get_user_messages')
-def handle_get_user_messages(data):
-    socketio.emit('get_user_messages', messages)
+@socketio.on('get_all_messages')
+def handle_get_user_messages(data, user='JohnDoe'):
+    socketio.emit('get_all_messages', message_storage[user])
 
-@app.route('/')
-def index():
-    return render_template('WebSocketClient.html')
+# @app.route('/')
+# def index():
+#     return render_template('WebSocketClient.html')
 
 if __name__ == '__main__':
     socketio.run(app)
